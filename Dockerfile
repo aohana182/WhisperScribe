@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -9,13 +9,6 @@ ARG EXTRAS
 ARG HF_PRECACHE_DIR
 ARG HF_TKN_FILE
 
-# Install system dependencies
-#RUN apt-get update && \
-#    apt-get install -y ffmpeg git && \
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/*
-
-# 2) Install system dependencies + Python + pip
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
@@ -26,7 +19,7 @@ RUN apt-get update && \
         python3-dev && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu129
 
 COPY . .
 
@@ -35,10 +28,10 @@ COPY . .
 #         for more details.
 RUN if [ -n "$EXTRAS" ]; then \
       echo "Installing with extras: [$EXTRAS]"; \
-      pip install --no-cache-dir .[$EXTRAS]; \
+      pip install --no-cache-dir whisperlivekit[$EXTRAS]; \
     else \
       echo "Installing base package only"; \
-      pip install --no-cache-dir .; \
+      pip install --no-cache-dir whisperlivekit; \
     fi
 
 # Enable in-container caching for Hugging Face models by: 
@@ -81,4 +74,4 @@ EXPOSE 8000
 ENTRYPOINT ["whisperlivekit-server", "--host", "0.0.0.0"]
 
 # Default args
-CMD ["--model", "base"]
+CMD ["--model", "medium"]
