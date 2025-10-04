@@ -37,6 +37,7 @@ class TranscriptionEngine:
             "log_level": "DEBUG",
             "ssl_certfile": None,
             "ssl_keyfile": None,
+            "forwarded_allow_ips": None,
             "transcription": True,
             "vad": True,
             "pcm_input": False,
