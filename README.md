@@ -153,6 +153,7 @@ async def websocket_endpoint(websocket: WebSocket):
 | `--port` | Server port | `8000` |
 | `--ssl-certfile` | Path to the SSL certificate file (for HTTPS support) | `None` |
 | `--ssl-keyfile` | Path to the SSL private key file (for HTTPS support) | `None` |
+| `--forwarded-allow-ips` | Ip or Ips allowed to reverse proxy the whisperlivekit-server. Supported types are  IP Addresses (e.g. 127.0.0.1), IP Networks (e.g. 10.100.0.0/16), or Literals (e.g. /path/to/socket.sock) | `None` |
 | `--pcm-input` | raw PCM (s16le) data is expected as input and FFmpeg will be bypassed. Frontend will use AudioWorklet instead of MediaRecorder | `False` |
 
 | Translation options | Description | Default |
