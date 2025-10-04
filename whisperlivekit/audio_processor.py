@@ -62,13 +62,13 @@ class AudioProcessor:
         self.bytes_per_sec = self.samples_per_sec * self.bytes_per_sample
         self.max_bytes_per_sec = 32000 * 5  # 5 seconds of audio at 32 kHz
         self.is_pcm_input = self.args.pcm_input
-        self.debug = False
 
         # State management
         self.is_stopping = False
         self.silence = False
         self.silence_duration = 0.0
         self.tokens = []
+        self.last_validated_token = 0
         self.translated_segments = []
         self.buffer_transcription = Transcript()
         self.end_buffer = 0
@@ -138,7 +138,7 @@ class AudioProcessor:
     async def add_dummy_token(self):
         """Placeholder token when no transcription is available."""
         async with self.lock:
-            current_time = time() - self.beg_loop if self.beg_loop else 0
+            current_time = time() - self.beg_loop
             self.tokens.append(ASRToken(
                 start=current_time, end=current_time + 1,
                 text=".", speaker=-1, is_dummy=True
@@ -161,6 +161,7 @@ class AudioProcessor:
                 
             return State(
                 tokens=self.tokens.copy(),
+                last_validated_token=self.last_validated_token,
                 translated_segments=self.translated_segments.copy(),
                 buffer_transcription=self.buffer_transcription,
                 end_buffer=self.end_buffer,
@@ -428,35 +429,23 @@ class AudioProcessor:
         """Format processing results for output."""
         while True:
             try:
-                # If FFmpeg error occurred, notify front-end
                 if self._ffmpeg_error:
-                    yield FrontData(
-                        status="error",
-                        error=f"FFmpeg error: {self._ffmpeg_error}"
-                    )
+                    yield FrontData(status="error", error=f"FFmpeg error: {self._ffmpeg_error}")
                     self._ffmpeg_error = None
                     await asyncio.sleep(1)
                     continue
 
-                # Get current state
                 state = await self.get_current_state()
-                                
-                # Add dummy tokens if needed
-                if (not state.tokens or state.tokens[-1].is_dummy) and not self.args.transcription and self.args.diarization:
-                    await self.add_dummy_token()
-                    sleep(0.5)
-                    state = await self.get_current_state()
                 
-                # Format output
-                lines, undiarized_text, end_w_silence = format_output(
+                
+                lines, undiarized_text = format_output(
                     state,
                     self.silence,
-                    current_time = time() - self.beg_loop if self.beg_loop else None,
+                    current_time = time() - self.beg_loop,
                     args = self.args,
-                    debug = self.debug,
                     sep=self.sep
                 )
-                if end_w_silence:
+                if lines and lines[-1].speaker == -2:
                     buffer_transcription = Transcript()
                 else:
                     buffer_transcription = state.buffer_transcription

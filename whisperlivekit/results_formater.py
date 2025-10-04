@@ -7,6 +7,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 CHECK_AROUND = 4
+DEBUG = False
+
 
 def is_punctuation(token):
     if token.is_punctuation():
@@ -30,99 +32,96 @@ def next_speaker_change(i, tokens, speaker):
     
 def new_line(
     token,
-    speaker,
-    debug_info = ""
 ):
     return Line(
-        speaker = speaker,
-        text = token.text + debug_info,
+        speaker = token.corrected_speaker,
+        text = token.text + (f"[{format_time(token.start)} : {format_time(token.end)}]" if DEBUG else ""),
         start = token.start,
         end = token.end,
         detected_language=token.detected_language
     )
 
-def append_token_to_last_line(lines, sep, token, debug_info):
-    if token.text:
-        lines[-1].text += sep + token.text + debug_info
-        lines[-1].end = token.end
-    if not lines[-1].detected_language and token.detected_language:
-        lines[-1].detected_language = token.detected_language
-         
+def append_token_to_last_line(lines, sep, token):
+    if not lines:
+        lines.append(new_line(token))
+    else:
+        if token.text:
+            lines[-1].text += sep + token.text + (f"[{format_time(token.start)} : {format_time(token.end)}]" if DEBUG else "")
+            lines[-1].end = token.end
+        if not lines[-1].detected_language and token.detected_language:
+            lines[-1].detected_language = token.detected_language
+            
 
-def format_output(state, silence, current_time, args, debug, sep):
+def format_output(state, silence, current_time, args, sep):
     diarization = args.diarization
     disable_punctuation_split = args.disable_punctuation_split
     tokens = state.tokens
     translated_segments = state.translated_segments # Here we will attribute the speakers only based on the timestamps of the segments
-    end_attributed_speaker = state.end_attributed_speaker
+    last_validated_token = state.last_validated_token
     
-    previous_speaker = -1
-    lines = []
+    previous_speaker = 1
     undiarized_text = []
-    tokens, end_w_silence = handle_silences(tokens, current_time, silence)
+    tokens = handle_silences(tokens, current_time, silence)
     last_punctuation = None
-    for i, token in enumerate(tokens):
-        speaker = token.speaker
-        if not diarization and speaker == -1: #Speaker -1 means no attributed by diarization. In the frontend, it should appear under 'Speaker 1'
-            speaker = 1
-        if diarization and not tokens[-1].speaker == -2:
-            if (speaker in [-1, 0]) and token.end >= end_attributed_speaker:
-                undiarized_text.append(token.text)
-                continue
-            elif (speaker in [-1, 0]) and token.end < end_attributed_speaker:
-                speaker = previous_speaker
-        debug_info = ""
-        if debug:
-            debug_info = f"[{format_time(token.start)} : {format_time(token.end)}]"
-            
-        if not lines:
-            lines.append(new_line(token, speaker, debug_info = ""))
-            continue
+    for i, token in enumerate(tokens[last_validated_token:]):
+        speaker = int(token.speaker)
+        token.corrected_speaker = speaker
+        if not diarization:
+            if speaker == -1: #Speaker -1 means no attributed by diarization. In the frontend, it should appear under 'Speaker 1'
+                token.corrected_speaker = 1
+                token.validated_speaker = True
         else:
-            previous_speaker = lines[-1].speaker
-        
-        if is_punctuation(token):
-            last_punctuation = i
-            
-        
-        if last_punctuation == i-1:
-            if speaker != previous_speaker:
-                # perfect, diarization perfectly aligned
-                lines.append(new_line(token, speaker, debug_info = ""))
-                last_punctuation, next_punctuation = None, None
-                continue
-            
-            speaker_change_pos, new_speaker = next_speaker_change(i, tokens, speaker)
-            if speaker_change_pos:
-                # Corrects delay:
-                # That was the idea. Okay haha |SPLIT SPEAKER| that's a good one 
-                # should become:
-                # That was the idea. |SPLIT SPEAKER| Okay haha that's a good one 
-                lines.append(new_line(token, new_speaker, debug_info = ""))
-            else:
-                # No speaker change to come
-                append_token_to_last_line(lines, sep, token, debug_info)
-            continue
-        
+            # if token.end > end_attributed_speaker and token.speaker != -2:
+            #     if tokens[-1].speaker == -2:  #if it finishes by a silence, we want to append the undiarized text to the last speaker.
+            #         token.corrected_speaker = previous_speaker
+            #     else:
+            #         undiarized_text.append(token.text)
+            #         continue
+            # else:
+                if is_punctuation(token):
+                    last_punctuation = i  
+                
+                if last_punctuation == i-1:
+                    if token.speaker != previous_speaker:
+                        token.validated_speaker = True
+                        # perfect, diarization perfectly aligned
+                        last_punctuation = None
+                    else:
+                        speaker_change_pos, new_speaker = next_speaker_change(i, tokens, speaker)
+                        if speaker_change_pos:
+                            # Corrects delay:
+                            # That was the idea. <Okay> haha |SPLIT SPEAKER| that's a good one 
+                            # should become:
+                            # That was the idea. |SPLIT SPEAKER| <Okay> haha that's a good one 
+                            token.corrected_speaker = new_speaker
+                            token.validated_speaker = True
+                elif speaker != previous_speaker:
+                    if not (speaker == -2 or previous_speaker == -2):
+                        if next_punctuation_change(i, tokens):
+                            # Corrects advance:
+                            # Are you |SPLIT SPEAKER| <okay>? yeah, sure. Absolutely 
+                            # should become:
+                            # Are you <okay>? |SPLIT SPEAKER| yeah, sure. Absolutely 
+                            token.corrected_speaker = previous_speaker
+                            token.validated_speaker = True
+                        else: #Problematic, except if the language has no punctuation. We append to previous line, except if disable_punctuation_split is set to True.
+                            if not disable_punctuation_split:
+                                token.corrected_speaker = previous_speaker
+                                token.validated_speaker = False
+        if token.validated_speaker:
+            state.last_validated_token = i
+        previous_speaker = token.corrected_speaker  
 
-        if speaker != previous_speaker:
-            if speaker == -2 or previous_speaker == -2: #silences can happen anytime
-                lines.append(new_line(token, speaker, debug_info = ""))
-                continue
-            elif next_punctuation_change(i, tokens):
-                # Corrects advance:
-                # Are you |SPLIT SPEAKER| okay? yeah, sure. Absolutely 
-                # should become:
-                # Are you okay? |SPLIT SPEAKER| yeah, sure. Absolutely 
-                append_token_to_last_line(lines, sep, token, debug_info)
-                continue
-            else: #we create a new speaker, but that's no ideal. We are not sure about the split. We prefer to append to previous line
-                if disable_punctuation_split:
-                    lines.append(new_line(token, speaker, debug_info = ""))
-                    continue
-                pass
-            
-        append_token_to_last_line(lines, sep, token, debug_info)
+    previous_speaker = 1
+    
+    lines = []
+    for token in tokens:
+        if int(token.corrected_speaker) != int(previous_speaker):
+            lines.append(new_line(token))
+        else:
+            append_token_to_last_line(lines, sep, token)
+
+        previous_speaker = token.corrected_speaker        
 
     if lines and translated_segments:
         unassigned_translated_segments = []
@@ -158,4 +157,4 @@ def format_output(state, silence, current_time, args, debug, sep):
     if state.buffer_transcription and lines:
         lines[-1].end = max(state.buffer_transcription.end, lines[-1].end)
         
-    return lines, undiarized_text, end_w_silence
+    return lines, undiarized_text
