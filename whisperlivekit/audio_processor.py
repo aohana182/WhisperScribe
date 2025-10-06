@@ -335,10 +335,10 @@ class AudioProcessor:
                 
                 # Process diarization
                 await diarization_obj.diarize(pcm_array)
-                segments = diarization_obj.get_segments()
                 if self.diarization_before_transcription:
+                    segments = diarization_obj.get_segments()
                     self.cumulative_pcm.append(pcm_array)
-                    if self.segments:
+                    if segments:
                         last_segment = segments[-1]                    
                         if last_segment.speaker != self.current_speaker:
                             cut_sec = last_segment.start - self.last_end
