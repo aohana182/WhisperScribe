@@ -175,6 +175,7 @@ def parse_args():
     )
     parser.add_argument("--ssl-certfile", type=str, help="Path to the SSL certificate file.", default=None)
     parser.add_argument("--ssl-keyfile", type=str, help="Path to the SSL private key file.", default=None)
+    parser.add_argument("--forwarded-allow-ips", type=str, help="Allowed ips for reverse proxying.", default=None)
     parser.add_argument(
         "--pcm-input",
         action="store_true",

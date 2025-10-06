@@ -178,14 +178,13 @@ function fmt1(x) {
 }
 
 let host, port, protocol;
-
+port = 8000;
 if (isExtension) {
     host = "localhost";
-    port = 8000;
     protocol = "ws";
 } else {
     host = window.location.hostname || "localhost";
-    port = window.location.port || 8000;
+    port = window.location.port;
     protocol = window.location.protocol === "https:" ? "wss" : "ws";
 }
 const defaultWebSocketUrl = `${protocol}://${host}${port ? ":" + port : ""}/asr`;

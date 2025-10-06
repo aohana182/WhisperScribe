@@ -118,6 +118,8 @@ def main():
 
     if ssl_kwargs:
         uvicorn_kwargs = {**uvicorn_kwargs, **ssl_kwargs}
+    if args.forwarded_allow_ips:
+        uvicorn_kwargs = { **uvicorn_kwargs, "forwarded_allow_ips" : args.forwarded_allow_ips }
 
     uvicorn.run(**uvicorn_kwargs)
 
