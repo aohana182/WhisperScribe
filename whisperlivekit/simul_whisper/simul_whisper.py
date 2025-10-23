@@ -51,20 +51,15 @@ class PaddedAlignAttWhisper:
             fw_encoder=None,
         ) -> None:
         self.log_segments = 0
-        model_name = os.path.basename(cfg.model_path).replace(".pt", "")
-        model_path = os.path.dirname(os.path.abspath(cfg.model_path))
-        if loaded_model:
-            self.model = loaded_model
-        else:
-            self.model = load_model(name=model_name, download_root=model_path)
         
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+        self.model = loaded_model
         self.mlx_encoder = mlx_encoder
         self.fw_encoder = fw_encoder
         if fw_encoder:
             self.fw_feature_extractor = FeatureExtractor(feature_size=self.model.dims.n_mels)
-            
+        
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
         logger.info(f"Model dimensions: {self.model.dims}")
         self.speaker = -1
         self.decode_options = DecodingOptions(
@@ -72,7 +67,7 @@ class PaddedAlignAttWhisper:
             without_timestamps = True,
             task=cfg.task
         )
-        self.tokenizer_is_multilingual = not model_name.endswith(".en")
+        self.tokenizer_is_multilingual = cfg.tokenizer_is_multilingual
         self.create_tokenizer(cfg.language if cfg.language != "auto" else None)
         # self.create_tokenizer('en')
         self.detected_language = cfg.language if cfg.language != "auto" else None
