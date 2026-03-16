@@ -1,18 +1,20 @@
 # Whisper Local Tool
 
-One-click Chrome extension that records browser meetings locally — no cloud, no subscriptions, no terminal.
-
-Captures tab audio + microphone, transcribes in real time using [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) running on your machine, and saves a timestamped `.txt` file to `C:\MeetingTranscripts\` when you stop.
+> I took [QuentinFuxa's WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) and vibe coded a Chrome extension on top of it. I don't fully understand the internals. If something breaks in the backend, go read his repo — that's the actual engine. What I built is the recorder extension that sits on top of it.
 
 ---
 
 ## What it does
 
-- Click the extension icon on any meeting tab (Google Meet, Zoom Web, Telemost, etc.)
-- Recorder window opens, Whisper model loads (~8s first time, instant after)
-- Click **Start Recording** — tab audio and your mic are both captured and transcribed
-- Click **Stop Recording** — transcript saved to `C:\MeetingTranscripts\YYYY-MM-DD_HH-mm_<title>.txt`
-- Everything runs locally on your machine
+One-click Chrome extension for recording browser meetings locally.
+
+- Click the extension icon on any meeting tab
+- It captures **tab audio + your mic** simultaneously
+- Transcribes in real time using Whisper running on your machine
+- When you stop, saves a `.txt` file to `C:\MeetingTranscripts\YYYY-MM-DD_HH-mm_<title>.txt`
+- Nothing leaves your machine. No cloud. No subscriptions.
+
+Tested on: Google Meet, Zoom Web, Yandex Telemost.
 
 ---
 
@@ -20,59 +22,86 @@ Captures tab audio + microphone, transcribes in real time using [WhisperLiveKit]
 
 - Windows 10/11
 - Python 3.11–3.13
-- Chrome (or Chromium-based browser)
-- ~1GB disk for the Whisper `base` model (downloaded automatically on first run)
+- Chrome (or any Chromium browser)
+- ~1GB disk space for the Whisper `base` model (auto-downloaded on first run)
 
 ---
 
-## Setup (one-time)
+## Installation (one-time setup)
 
-**1. Install the Python backend**
+### Step 1 — Install the Python backend
 
 ```powershell
 pip install -e .
 ```
 
-**2. Load the extension in Chrome**
+### Step 2 — Load the extension in Chrome
 
-- Go to `chrome://extensions`
-- Enable **Developer mode** (top-right toggle)
-- Click **Load unpacked** → select the `recorder-extension/` folder
-- Copy the 32-character extension ID shown under the extension name
+1. Open Chrome → go to `chrome://extensions`
+2. Toggle **Developer mode** on (top-right corner)
+3. Click **Load unpacked**
+4. Select the `recorder-extension/` folder from this repo
+5. The extension appears as **"WhisperLiveKit Recorder"**
+6. **Copy the extension ID** — the 32-character string shown under the name
 
-**3. Run the setup script**
+### Step 3 — Register the native host (one-time)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File native_host\setup.ps1
 ```
 
-Paste the extension ID when prompted. This script:
+When prompted, paste the extension ID from Step 2.
+
+This script:
 - Finds your Python and `wlk` executable automatically
-- Registers the native messaging host with Chrome (one registry key)
+- Registers the native host with Chrome (writes one Windows registry key)
 - Creates `C:\MeetingTranscripts\` if it doesn't exist
+
+**Re-run this script if you ever reinstall the extension** (Chrome gives it a new ID).
 
 ---
 
-## Usage
+## How to use it
 
-1. Open Chrome and navigate to your meeting tab
-2. Click the **Whisper Local Tool** extension icon in the toolbar
-3. Wait for **Ready** status (~8s on first run, instant if server is already warm)
-4. Click **Start Recording**
-5. Click **Stop Recording** when done
-6. Find your transcript in `C:\MeetingTranscripts\`
+1. Open Chrome, go to your meeting tab (Meet, Zoom, Telemost, etc.)
+2. Click the **Whisper Local Tool** icon in the Chrome toolbar
+   - If you don't see it: click the puzzle piece 🧩 icon → pin it
+3. A recorder window opens. Status shows **"Loading model..."**
+4. Wait ~8 seconds on first run (Whisper loads). After that it's instant.
+5. Status changes to **"Ready"** → click **Start Recording**
+6. Talk. The transcript appears in real time.
+7. Click **Stop Recording** when done
+8. Find your file in `C:\MeetingTranscripts\`
 
-Re-run `setup.ps1` only if you reinstall the extension (Chrome assigns a new ID).
+### Buttons
+
+| Button | What it does |
+|--------|-------------|
+| Start Recording | Begins capturing tab audio + mic and transcribing |
+| Stop Recording | Stops capture, saves transcript to disk |
+| Kill Server | Shuts down the Whisper server (frees memory) |
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Recorder window opens but stays "Loading model..." forever | Open PowerShell, run `wlk --model base` manually to see the error |
+| "Native Messaging failed" in the recorder window | Re-run `native_host\setup.ps1` — the extension ID may have changed |
+| No extension icon visible | Click the 🧩 puzzle piece in Chrome toolbar → pin Whisper Local Tool |
+| `setup.ps1` says "wlk.exe not found" | Make sure you ran `pip install -e .` in the repo first |
+| Tab audio not captured | Chrome requires the tab to be playing audio when you click the icon |
 
 ---
 
 ## Project structure
 
 ```
-recorder-extension/     Chrome MV3 extension (load this in Chrome)
-native_host/            Native Messaging host — manages the wlk server process
-whisperlivekit/         WhisperLiveKit Python backend (speech-to-text engine)
-tests/                  Python tests for the save endpoint and native host
+recorder-extension/     The Chrome extension — load this in Chrome
+native_host/            Small Python script that manages the Whisper server process
+whisperlivekit/         QuentinFuxa's backend — don't touch unless you know what you're doing
+tests/                  Automated tests
 ```
 
 ---
@@ -80,18 +109,16 @@ tests/                  Python tests for the save endpoint and native host
 ## Running tests
 
 ```powershell
-# Python tests (save endpoint + native host)
+# Python tests
 .\.venv\Scripts\python.exe -m pytest tests/ -v
 
-# JS unit tests (recorder logic)
-cd recorder-extension
-npm test
+# JS unit tests
+cd recorder-extension && npm test
 ```
 
 ---
 
-## How it works
+## Credits
 
-The extension uses Chrome's [Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging) API to launch a local WhisperLiveKit server on demand. Tab audio and microphone are merged in the browser via the Web Audio API and streamed to the local WebSocket server for transcription. Nothing leaves your machine.
-
-Built on top of [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa.
+Backend engine: [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa.
+Everything in `recorder-extension/` and `native_host/` is mine.
