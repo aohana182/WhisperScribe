@@ -93,7 +93,11 @@ This script:
 
 ## Model sizes and language support
 
-Default is `base` with `--min-chunk-size 3` — the only model that runs in real-time on a CPU-only machine. On machines with a GPU, switch to `small` or `medium` for better accuracy. To change it, open `native_host/host.py`.
+Default is `base` with `--min-chunk-size 3` — the only model that runs in real-time on a CPU-only machine. On machines with a GPU, switch to `small` or `medium` for better accuracy.
+
+**Language:** auto-detected. Russian and English both work out of the box — no configuration needed. The language flag is intentionally omitted so Whisper picks the language from the audio.
+
+To change the model, language, or any other server flag, edit **`native_host/host.py` line 50** — that is the single place where all server launch arguments are hardcoded.
 
 | Model | Size | Load time | Quality | Languages |
 |-------|------|-----------|---------|-----------|
