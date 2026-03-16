@@ -127,3 +127,18 @@ launch.json
 !tests/
 nllb-200-distilled-600M-ctranslate2/*
 *.mp3
+# JS
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Generated extension files (built by sync_extension.py)
+chrome-extension/live_transcription.html
+chrome-extension/live_transcription.js
+chrome-extension/live_transcription.css
+chrome-extension/web/

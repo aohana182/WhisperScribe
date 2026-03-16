@@ -1,5 +1,5 @@
 # PRD: Chrome-Tab Meeting Transcription + Local Autosave
-**Base repo:** https://github.com/QuentinFuxa/WhisperLiveKit
+**Base repo:** https://github.com/aohana182/Whisper-Local-Tool
 **Last updated:** 2026-03-16
 
 ---
