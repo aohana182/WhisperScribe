@@ -4,6 +4,7 @@ import sys
 import json
 import struct
 import subprocess
+import socket
 from pathlib import Path
 
 # server.py lives next to native_host/ at repo root
@@ -11,6 +12,13 @@ _REPO_ROOT = Path(__file__).parent.parent
 _SERVER_PY = str(_REPO_ROOT / "server.py")
 
 _server_proc = None
+_PORT = 8000
+
+
+def _port_in_use(port):
+    """Return True if something is already listening on the port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
 
 def read_message():
     raw_len = sys.stdin.buffer.read(4)
@@ -34,10 +42,12 @@ def main():
             break
         action = msg.get('action')
         if action == 'start_server':
-            if _server_proc is None or _server_proc.poll() is not None:
+            if _port_in_use(_PORT):
+                send_message({'ok': True, 'action': 'start_server', 'already_running': True})
+            elif _server_proc is None or _server_proc.poll() is not None:
                 try:
                     _server_proc = subprocess.Popen(
-                        [sys.executable, _SERVER_PY, '--model', 'small', '--language', 'auto'],
+                        [sys.executable, _SERVER_PY, '--model', 'small', '--backend', 'faster-whisper'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL
                     )
