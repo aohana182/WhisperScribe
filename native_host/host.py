@@ -5,6 +5,7 @@ import struct
 import subprocess
 import socket
 import time
+import urllib.request
 from pathlib import Path
 
 # server.py lives next to native_host/ at repo root
@@ -19,6 +20,14 @@ def _port_in_use(port):
     """Return True if something is already listening on the port."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
+
+def _health_ok(port):
+    """Return True if the server on this port responds to /health."""
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/health', timeout=2) as r:
+            return r.status == 200
+    except Exception:
+        return False
 
 def _kill_port(port):
     """Kill whatever process is listening on the given port (Windows)."""
@@ -62,10 +71,16 @@ def main():
                 send_message({'ok': True, 'action': 'start_server', 'already_running': True, 'pid': _server_proc.pid})
                 continue
 
-            # If a stale process is holding the port, kill it first
+            # Port is in use — check if it's a healthy server we should reuse
             if _port_in_use(_PORT):
-                _kill_port(_PORT)
-                time.sleep(1)
+                if _health_ok(_PORT):
+                    # A working server is already running (e.g. manually started) — reuse it
+                    send_message({'ok': True, 'action': 'start_server', 'already_running': True})
+                    continue
+                else:
+                    # Port is held by a dead/stale process — kill and restart
+                    _kill_port(_PORT)
+                    time.sleep(1)
 
             # Start fresh
             try:
