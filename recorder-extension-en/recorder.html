@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whisper Scribe</title>
+  <style>
+    body {
+      margin: 0; padding: 16px;
+      font-family: system-ui, sans-serif;
+      background: #1a1a2e; color: #e0e0e0;
+      width: 388px; min-height: 520px;
+      box-sizing: border-box;
+    }
+    h1 { margin: 0 0 12px; font-size: 18px; color: #a0c4ff; }
+    #status-badge {
+      display: inline-block; padding: 4px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: bold; margin-bottom: 12px;
+      background: #333; color: #aaa;
+    }
+    #status-badge.starting  { background: #2a3a5a; color: #7ab0ff; }
+    #status-badge.ready     { background: #1a3a2a; color: #7aff9a; }
+    #status-badge.recording { background: #3a1a1a; color: #ff7a7a; animation: pulse 1.5s infinite; }
+    #status-badge.saving    { background: #3a3a1a; color: #ffdd7a; }
+    #status-badge.saved     { background: #1a3a2a; color: #7aff9a; }
+    #status-badge.error     { background: #3a1a1a; color: #ff7a7a; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    #meeting-title { font-size: 13px; color: #888; margin-bottom: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    button {
+      padding: 8px 16px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 14px; font-weight: 500;
+    }
+    #btn-record { background: #4a90d9; color: white; flex: 1; }
+    #btn-record:hover { background: #3a80c9; }
+    #btn-record:disabled { background: #333; color: #666; cursor: default; }
+    #btn-record.recording { background: #c0392b; }
+    #btn-record.recording:hover { background: #a93226; }
+    #btn-kill { background: #2a2a2a; color: #888; font-size: 12px; padding: 8px 12px; }
+    #btn-kill:hover { background: #3a1a1a; color: #ff7a7a; }
+    #transcript-area {
+      background: #111122; border-radius: 6px; padding: 10px;
+      height: 260px; overflow-y: auto;
+      font-size: 13px; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    #interim { color: #666; font-style: italic; }
+    #message { margin-top: 10px; font-size: 12px; color: #888; min-height: 18px; }
+    #message.error { color: #ff7a7a; }
+    #message.success { color: #7aff9a; }
+  </style>
+</head>
+<body>
+  <h1>Whisper Scribe</h1>
+  <div id="status-badge">Initializing...</div>
+  <div id="meeting-title"></div>
+  <div class="btn-row">
+    <button id="btn-record" disabled>Start Recording</button>
+    <button id="btn-kill">Kill Server</button>
+  </div>
+  <div id="transcript-area">
+    <span id="final-text"></span><span id="interim"></span>
+  </div>
+  <div id="message"></div>
+  <script src="recorder.js"></script>
+</body>
+</html>

@@ -86,7 +86,7 @@ def main():
             try:
                 _log = open(_REPO_ROOT / 'server_log.txt', 'w', encoding='utf-8')
                 _server_proc = subprocess.Popen(
-                    [sys.executable, _SERVER_PY, '--model', 'base', '--backend', 'faster-whisper', '--min-chunk-size', '3', '--buffer_trimming_sec', '30', '--confidence-validation', '--pcm-input', '--init-prompt', 'Привет. Hello.'],
+                    [sys.executable, _SERVER_PY, '--model', 'base', '--backend', 'faster-whisper', '--min-chunk-size', '3', '--buffer_trimming_sec', '30', '--confidence-validation', '--pcm-input'],
                     stdout=_log,
                     stderr=_log
                 )

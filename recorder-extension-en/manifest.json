@@ -1,0 +1,31 @@
+{
+    "manifest_version": 3,
+    "name": "Whisper Scribe EN",
+    "version": "1.0",
+    "description": "One-click meeting recorder — English. Captures tab + mic, transcribes locally, saves to C:\\MeetingTranscripts\\.",
+    "icons": {
+        "16":  "icons/icon16.png",
+        "32":  "icons/icon32.png",
+        "48":  "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "Record meeting in English"
+    },
+    "permissions": [
+        "tabCapture",
+        "activeTab",
+        "storage",
+        "nativeMessaging",
+        "notifications"
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["recorder.html", "recorder.js", "web/pcm_worklet.js"],
+            "matches": ["<all_urls>"]
+        }
+    ]
+}
