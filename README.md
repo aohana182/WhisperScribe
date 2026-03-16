@@ -93,7 +93,7 @@ This script:
 
 ## Model sizes and language support
 
-Default is `small` — good enough for most use cases. To change it, open `native_host/host.py` and replace `--model small` with your preferred size.
+Default is `medium` — good balance of accuracy and speed for multilingual use. To change it, open `native_host/host.py` and replace `--model medium` with your preferred size.
 
 | Model | Size | Load time | Quality | Languages |
 |-------|------|-----------|---------|-----------|
