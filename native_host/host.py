@@ -85,7 +85,7 @@ def main():
             # Start fresh
             try:
                 _server_proc = subprocess.Popen(
-                    [sys.executable, _SERVER_PY, '--model', 'base', '--backend', 'faster-whisper', '--min-chunk-size', '3', '--buffer_trimming_sec', '30', '--confidence-validation', '--pcm-input'],
+                    [sys.executable, _SERVER_PY, '--model', 'base', '--backend', 'faster-whisper', '--min-chunk-size', '3', '--buffer_trimming_sec', '30', '--confidence-validation', '--pcm-input', '--init-prompt', 'Привет. Hello.'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
