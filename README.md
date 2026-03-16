@@ -31,6 +31,14 @@ Tested on: Google Meet, Zoom Web, Yandex Telemost.
 
 ### Step 1 — Install the Python backend
 
+This project depends on [QuentinFuxa's WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) as its transcription engine. Install it first:
+
+```powershell
+pip install whisperlivekit
+```
+
+Or install everything at once:
+
 ```powershell
 pip install -r requirements.txt
 ```
