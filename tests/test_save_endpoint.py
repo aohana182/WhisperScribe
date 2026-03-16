@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 import httpx
 
-import whisperlivekit.basic_server as svr
+import server as svr
 
 # ---------------------------------------------------------------------------
 # Helpers

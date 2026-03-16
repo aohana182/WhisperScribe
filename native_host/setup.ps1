@@ -1,4 +1,4 @@
-# WhisperLiveKit Native Messaging Host Setup
+# Whisper Local Tool — Native Messaging Host Setup
 # Run once after loading the extension in Chrome.
 #
 # Usage (from repo root OR from native_host/):
@@ -7,38 +7,37 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "=== WhisperLiveKit Setup ===" -ForegroundColor Cyan
+Write-Host "=== Whisper Local Tool Setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
-# 1. Find Python + wlk
+# 1. Find Python
 # ---------------------------------------------------------------------------
 $pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
 if (-not $pythonExe) {
-    # Try .venv relative to repo root
     $repoRoot = Split-Path -Parent $PSScriptRoot
     $venvPython = Join-Path $repoRoot ".venv\Scripts\python.exe"
     if (Test-Path $venvPython) {
         $pythonExe = $venvPython
     } else {
-        Write-Host "Error: python not found. Activate your venv or add Python to PATH." -ForegroundColor Red
+        Write-Host "Error: python not found. Add Python to PATH or activate your venv." -ForegroundColor Red
         exit 1
     }
 }
 Write-Host "Python: $pythonExe" -ForegroundColor Gray
 
-# Derive wlk.exe from the same Scripts directory as python.exe
-$scriptsDir = Split-Path -Parent $pythonExe
-$wlkExe = Join-Path $scriptsDir "wlk.exe"
-if (-not (Test-Path $wlkExe)) {
-    Write-Host "Error: wlk.exe not found at $wlkExe" -ForegroundColor Red
-    Write-Host "Make sure WhisperLiveKit is installed in the active environment:" -ForegroundColor Yellow
-    Write-Host "  pip install -e ." -ForegroundColor Yellow
+# ---------------------------------------------------------------------------
+# 2. Verify server.py exists at repo root
+# ---------------------------------------------------------------------------
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$serverPy = Join-Path $repoRoot "server.py"
+if (-not (Test-Path $serverPy)) {
+    Write-Host "Error: server.py not found at $serverPy" -ForegroundColor Red
     exit 1
 }
-Write-Host "wlk:    $wlkExe" -ForegroundColor Gray
+Write-Host "Server: $serverPy" -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
-# 2. Write host.bat with hardcoded Python path (so Chrome can find it)
+# 3. Write host.bat (Chrome NM requires an executable, not a .py file)
 # ---------------------------------------------------------------------------
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $hostPy    = Join-Path $scriptDir "host.py"
@@ -51,24 +50,13 @@ $hostBat   = Join-Path $scriptDir "host.bat"
 Write-Host "host.bat written: $hostBat" -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
-# 3. Inject wlk path into host.py via environment variable in host.bat
-#    (host.py reads WLK_EXE env var; falls back to 'wlk' if not set)
-# ---------------------------------------------------------------------------
-@"
-@echo off
-set WLK_EXE=$wlkExe
-"$pythonExe" "$hostPy"
-"@ | Set-Content -Path $hostBat -Encoding ASCII
-Write-Host "host.bat updated with WLK_EXE path" -ForegroundColor Gray
-
-# ---------------------------------------------------------------------------
 # 4. Prompt for extension ID
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "Step: Find your extension ID" -ForegroundColor Cyan
-Write-Host "  1. Open Chrome → chrome://extensions"
+Write-Host "  1. Open Chrome -> chrome://extensions"
 Write-Host "  2. Enable 'Developer mode' (top-right toggle)"
-Write-Host "  3. Find 'WhisperLiveKit Tab Capture' and copy the ID (32 chars)"
+Write-Host "  3. Find 'Whisper Local Tool' and copy the ID (32 chars)"
 Write-Host ""
 $extId = Read-Host "Paste extension ID"
 $extId = $extId.Trim()
@@ -83,7 +71,7 @@ if ($extId.Length -ne 32) {
 $manifestPath = Join-Path $scriptDir "com.whisperlivekit.host.json"
 $manifest = [ordered]@{
     name            = "com.whisperlivekit.host"
-    description     = "WhisperLiveKit process manager"
+    description     = "Whisper Local Tool process manager"
     path            = $hostBat
     type            = "stdio"
     allowed_origins = @("chrome-extension://$extId/")
@@ -117,7 +105,7 @@ if (-not (Test-Path $transcriptsDir)) {
 Write-Host ""
 Write-Host "=== Setup complete ===" -ForegroundColor Green
 Write-Host ""
-Write-Host "Click the WhisperLiveKit icon in Chrome to start a session." -ForegroundColor Cyan
+Write-Host "Click the Whisper Local Tool icon in Chrome to start a session." -ForegroundColor Cyan
 Write-Host "Transcripts save to: $transcriptsDir" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Re-run this script if you reinstall the extension (new ID)." -ForegroundColor Gray

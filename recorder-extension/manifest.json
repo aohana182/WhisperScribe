@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "WhisperLiveKit Recorder",
+    "name": "Whisper Scribe",
     "version": "1.0",
     "description": "One-click meeting recorder. Captures tab + mic, transcribes locally, saves to C:\\MeetingTranscripts\\.",
     "icons": {
@@ -13,7 +13,7 @@
         "service_worker": "background.js"
     },
     "action": {
-        "default_title": "Record meeting with WhisperLiveKit"
+        "default_title": "Record meeting with Whisper Scribe"
     },
     "permissions": [
         "tabCapture",

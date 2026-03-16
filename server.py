@@ -18,7 +18,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logging.getLogger().setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-logging.getLogger("whisperlivekit.qwen3_asr").setLevel(logging.DEBUG)
 
 config = parse_args()
 transcription_engine = None
@@ -110,7 +109,6 @@ async def handle_websocket_results(websocket, results_generator, diff_tracker=No
                 await websocket.send_json(diff_tracker.to_message(response))
             else:
                 await websocket.send_json(response.to_dict())
-        # when the results_generator finishes it means all audio has been processed
         logger.info("Results generator finished. Sending 'ready_to_stop' to client.")
         await websocket.send_json({"type": "ready_to_stop"})
     except WebSocketDisconnect:
@@ -123,7 +121,6 @@ async def handle_websocket_results(websocket, results_generator, diff_tracker=No
 async def websocket_endpoint(websocket: WebSocket):
     global transcription_engine
 
-    # Read per-session options from query parameters
     session_language = websocket.query_params.get("language", None)
     mode = websocket.query_params.get("mode", "full")
 
@@ -228,14 +225,12 @@ def _format_openai_response(front_data, response_format: str, language: Optional
     d = front_data.to_dict()
     lines = d.get("lines", [])
 
-    # Combine all speech text (exclude silence segments)
     text_parts = [l["text"] for l in lines if l.get("text") and l.get("speaker", 0) != -2]
     full_text = " ".join(text_parts).strip()
 
     if response_format == "text":
         return full_text
 
-    # Build segments and words for verbose_json
     segments = []
     words = []
     for i, line in enumerate(lines):
@@ -249,7 +244,6 @@ def _format_openai_response(front_data, response_format: str, language: Optional
             "end": round(end, 2),
             "text": line["text"],
         })
-        # Split segment text into approximate words with estimated timestamps
         seg_words = line["text"].split()
         if seg_words:
             word_duration = (end - start) / max(len(seg_words), 1)
@@ -284,7 +278,6 @@ def _format_openai_response(front_data, response_format: str, language: Optional
             lines_out.append("")
         return "\n".join(lines_out)
 
-    # Default: json
     return {"text": full_text}
 
 
@@ -307,11 +300,7 @@ async def create_transcription(
     response_format: str = Form(default="json"),
     timestamp_granularities: Optional[List[str]] = Form(default=None),
 ):
-    """OpenAI-compatible audio transcription endpoint.
-
-    Accepts the same parameters as OpenAI's /v1/audio/transcriptions API.
-    The `model` parameter is accepted but ignored (uses the server's configured backend).
-    """
+    """OpenAI-compatible audio transcription endpoint."""
     global transcription_engine
 
     audio_bytes = await file.read()
@@ -319,21 +308,17 @@ async def create_transcription(
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Empty audio file")
 
-    # Convert to PCM for pipeline processing
     pcm_data = await _convert_to_pcm(audio_bytes)
-    duration = len(pcm_data) / (16000 * 2)  # 16kHz, 16-bit
+    duration = len(pcm_data) / (16000 * 2)
 
-    # Process through the full pipeline
     processor = AudioProcessor(
         transcription_engine=transcription_engine,
         language=language,
     )
-    # Force PCM input regardless of server config
     processor.is_pcm_input = True
 
     results_gen = await processor.create_tasks()
 
-    # Collect results in background while feeding audio
     final_result = None
 
     async def collect():
@@ -343,15 +328,12 @@ async def create_transcription(
 
     collect_task = asyncio.create_task(collect())
 
-    # Feed audio in chunks (1 second each)
-    chunk_size = 16000 * 2  # 1 second of PCM
+    chunk_size = 16000 * 2
     for i in range(0, len(pcm_data), chunk_size):
         await processor.process_audio(pcm_data[i:i + chunk_size])
 
-    # Signal end of audio
     await processor.process_audio(b"")
 
-    # Wait for pipeline to finish
     try:
         await asyncio.wait_for(collect_task, timeout=120.0)
     except asyncio.TimeoutError:
@@ -386,16 +368,13 @@ async def list_models():
 
 
 def main():
-    """Entry point for the CLI command."""
+    """Entry point for the wlk-style server launch."""
     import uvicorn
 
-    from whisperlivekit.cli import print_banner
-
     ssl = bool(config.ssl_certfile and config.ssl_keyfile)
-    print_banner(config, config.host, config.port, ssl=ssl)
 
     uvicorn_kwargs = {
-        "app": "whisperlivekit.basic_server:app",
+        "app": app,
         "host": config.host,
         "port": config.port,
         "reload": False,

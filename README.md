@@ -1,4 +1,4 @@
-# Whisper Local Tool
+# Whisper Scribe
 
 > I took [QuentinFuxa's WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) and vibe coded a Chrome extension on top of it. I don't fully understand the internals. If something breaks in the backend, go read his repo — that's the actual engine. What I built is the recorder extension that sits on top of it.
 
@@ -32,7 +32,7 @@ Tested on: Google Meet, Zoom Web, Yandex Telemost.
 ### Step 1 — Install the Python backend
 
 ```powershell
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ### Step 2 — Load the extension in Chrome
@@ -41,7 +41,7 @@ pip install -e .
 2. Toggle **Developer mode** on (top-right corner)
 3. Click **Load unpacked**
 4. Select the `recorder-extension/` folder from this repo
-5. The extension appears as **"WhisperLiveKit Recorder"**
+5. The extension appears as **"Whisper Scribe"**
 6. **Copy the extension ID** — the 32-character string shown under the name
 
 ### Step 3 — Register the native host (one-time)
@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File native_host\setup.ps1
 When prompted, paste the extension ID from Step 2.
 
 This script:
-- Finds your Python and `wlk` executable automatically
+- Finds your Python automatically
 - Registers the native host with Chrome (writes one Windows registry key)
 - Creates `C:\MeetingTranscripts\` if it doesn't exist
 
@@ -64,9 +64,9 @@ This script:
 ## How to use it
 
 1. Open Chrome, go to your meeting tab (Meet, Zoom, Telemost, etc.)
-2. Click the **Whisper Local Tool** icon in the Chrome toolbar
-   - If you don't see it: click the puzzle piece 🧩 icon → pin it
-3. A recorder window opens. Status shows **"Loading model..."**
+2. Click the **Whisper Scribe** icon in the Chrome toolbar
+   - If you don't see it: click the puzzle piece icon → pin it
+3. A recorder window opens. Status shows **"Starting server..."**
 4. Wait ~8 seconds on first run (Whisper loads). After that it's instant.
 5. Status changes to **"Ready"** → click **Start Recording**
 6. Talk. The transcript appears in real time.
@@ -87,10 +87,9 @@ This script:
 
 | Problem | Fix |
 |---------|-----|
-| Recorder window opens but stays "Loading model..." forever | Open PowerShell, run `wlk --model base` manually to see the error |
+| Recorder window opens but stays "Starting server..." forever | Open PowerShell, run `python server.py --model base` to see the error |
 | "Native Messaging failed" in the recorder window | Re-run `native_host\setup.ps1` — the extension ID may have changed |
-| No extension icon visible | Click the 🧩 puzzle piece in Chrome toolbar → pin Whisper Local Tool |
-| `setup.ps1` says "wlk.exe not found" | Make sure you ran `pip install -e .` in the repo first |
+| No extension icon visible | Click the puzzle piece in Chrome toolbar → pin Whisper Scribe |
 | Tab audio not captured | Chrome requires the tab to be playing audio when you click the icon |
 
 ---
@@ -100,7 +99,7 @@ This script:
 ```
 recorder-extension/     The Chrome extension — load this in Chrome
 native_host/            Small Python script that manages the Whisper server process
-whisperlivekit/         QuentinFuxa's backend — don't touch unless you know what you're doing
+server.py               FastAPI server wrapping QuentinFuxa's WhisperLiveKit backend
 tests/                  Automated tests
 ```
 
@@ -110,7 +109,7 @@ tests/                  Automated tests
 
 ```powershell
 # Python tests
-.\.venv\Scripts\python.exe -m pytest tests/ -v
+python -m pytest tests/ -v
 
 # JS unit tests
 cd recorder-extension && npm test
@@ -121,4 +120,4 @@ cd recorder-extension && npm test
 ## Credits
 
 Backend engine: [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa.
-Everything in `recorder-extension/` and `native_host/` is mine.
+Everything in `recorder-extension/`, `native_host/`, and `server.py` is mine.

@@ -4,10 +4,11 @@ import sys
 import json
 import struct
 import subprocess
-import threading
+from pathlib import Path
 
-# setup.ps1 injects WLK_EXE into the environment so host.bat doesn't rely on PATH
-WLK_CMD = os.environ.get("WLK_EXE", "wlk")
+# server.py lives next to native_host/ at repo root
+_REPO_ROOT = Path(__file__).parent.parent
+_SERVER_PY = str(_REPO_ROOT / "server.py")
 
 _server_proc = None
 
@@ -36,7 +37,7 @@ def main():
             if _server_proc is None or _server_proc.poll() is not None:
                 try:
                     _server_proc = subprocess.Popen(
-                        [WLK_CMD, '--model', 'base', '--language', 'auto'],
+                        [sys.executable, _SERVER_PY, '--model', 'base', '--language', 'auto'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL
                     )
