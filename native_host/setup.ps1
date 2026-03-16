@@ -1,4 +1,4 @@
-# Whisper Local Tool — Native Messaging Host Setup
+# Whisper Scribe — Native Messaging Host Setup
 # Run once after loading the extension in Chrome.
 #
 # Usage (from repo root OR from native_host/):
@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "=== Whisper Local Tool Setup ===" -ForegroundColor Cyan
+Write-Host "=== Whisper Scribe Setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
 # 1. Find Python
@@ -57,7 +57,7 @@ Write-Host ""
 Write-Host "Step: Find your extension ID" -ForegroundColor Cyan
 Write-Host "  1. Open Chrome -> chrome://extensions"
 Write-Host "  2. Enable 'Developer mode' (top-right toggle)"
-Write-Host "  3. Find 'Whisper Local Tool' and copy the ID (32 chars)"
+Write-Host "  3. Find 'Whisper Scribe' and copy the ID (32 chars)"
 Write-Host ""
 $extId = Read-Host "Paste extension ID"
 $extId = $extId.Trim()
@@ -72,7 +72,7 @@ if ($extId.Length -ne 32) {
 $manifestPath = Join-Path $scriptDir "com.whisperlivekit.host.json"
 $manifest = [ordered]@{
     name            = "com.whisperlivekit.host"
-    description     = "Whisper Local Tool process manager"
+    description     = "Whisper Scribe process manager"
     path            = $hostBat
     type            = "stdio"
     allowed_origins = @("chrome-extension://$extId/")
@@ -106,7 +106,7 @@ if (-not (Test-Path $transcriptsDir)) {
 Write-Host ""
 Write-Host "=== Setup complete ===" -ForegroundColor Green
 Write-Host ""
-Write-Host "Click the Whisper Local Tool icon in Chrome to start a session." -ForegroundColor Cyan
+Write-Host "Click the Whisper Scribe icon in Chrome to start a session." -ForegroundColor Cyan
 Write-Host "Transcripts save to: $transcriptsDir" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Re-run this script if you reinstall the extension (new ID)." -ForegroundColor Gray
