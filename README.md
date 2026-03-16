@@ -93,7 +93,7 @@ This script:
 
 ## Model sizes and language support
 
-The model is set in `native_host/host.py`. Change `--model small` to whichever fits your machine.
+Default is `small` — good enough for most use cases. To change it, open `native_host/host.py` and replace `--model small` with your preferred size.
 
 | Model | Size | Load time | Quality | Languages |
 |-------|------|-----------|---------|-----------|
