@@ -7,7 +7,7 @@ name = "whisperlivekit"
 version = "0.2.20"
 description = "Real-time speech-to-text models"
 readme = "README.md"
-authors = [{ name = "Quentin Fuxa" }]
+authors = [{ name = "aohana182" }]
 license = { file = "LICENSE" }
 requires-python = ">=3.11, <3.14"
 classifiers = [
@@ -35,7 +35,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7.0", "pytest-asyncio>=0.21", "datasets>=2.14", "librosa"]
+test = ["pytest>=7.0", "pytest-asyncio>=0.21", "httpx>=0.27", "datasets>=2.14", "librosa"]
 translation = ["nllw"]
 sentence_tokenizer = ["mosestokenizer", "wtpsplit"]
 mlx-whisper = [
@@ -114,12 +114,19 @@ url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [project.urls]
-Homepage = "https://github.com/QuentinFuxa/WhisperLiveKit"
+Homepage = "https://github.com/aohana182/Whisper-Local-Tool"
 
 [project.scripts]
 whisperlivekit-server = "whisperlivekit.basic_server:main"
 wlk = "whisperlivekit.cli:main"
 wlk-test = "whisperlivekit.test_client:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.ruff]
 target-version = "py311"

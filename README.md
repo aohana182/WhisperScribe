@@ -3,7 +3,7 @@
 
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/QuentinFuxa/WhisperLiveKit/refs/heads/main/demo.png" alt="WhisperLiveKit Demo" width="730">
+<img src="https://raw.githubusercontent.com/aohana182/Whisper-Local-Tool/refs/heads/main/demo.png" alt="WhisperLiveKit Demo" width="730">
 </p>
 
 
@@ -14,7 +14,7 @@
 <a href="https://huggingface.co/qfuxa/whisper-base-french-lora">
   <img alt="Hugging Face Weights" src="https://img.shields.io/badge/🤗-Hugging%20Face%20Weights-yellow" />
 </a>
-<a href="https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache 2.0-dark_green"></a>
+<a href="https://github.com/aohana182/Whisper-Local-Tool/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache 2.0-dark_green"></a>
 </p>
 
 
@@ -34,7 +34,7 @@
 
 ### Architecture
 
-<img alt="Architecture" src="https://raw.githubusercontent.com/QuentinFuxa/WhisperLiveKit/refs/heads/main/architecture.png" />
+<img alt="Architecture" src="https://raw.githubusercontent.com/aohana182/Whisper-Local-Tool/refs/heads/main/architecture.png" />
 
 *The backend supports multiple concurrent users. Voice Activity Detection reduces overhead when no voice is detected.*
 
@@ -90,7 +90,7 @@ ws://localhost:8000/asr
 
 See [docs/API.md](docs/API.md) for the complete API reference.
 
-> - See [here](https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/whisperlivekit/simul_whisper/whisper/tokenizer.py) for the list of all available languages.
+> - See [here](https://github.com/aohana182/Whisper-Local-Tool/blob/main/whisperlivekit/simul_whisper/whisper/tokenizer.py) for the list of all available languages.
 > - Check the [troubleshooting guide](docs/troubleshooting.md) for step-by-step fixes collected from recent GPU setup/env issues.
 > - For HTTPS requirements, see the **Parameters** section for SSL configuration options.
 
@@ -141,7 +141,7 @@ We are actively looking for benchmark results on other hardware (NVIDIA GPUs, di
 Go to `chrome-extension` for instructions.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/QuentinFuxa/WhisperLiveKit/refs/heads/main/chrome-extension/demo-extension.png" alt="WhisperLiveKit Demo" width="600">
+<img src="https://raw.githubusercontent.com/aohana182/Whisper-Local-Tool/refs/heads/main/chrome-extension/demo-extension.png" alt="WhisperLiveKit Demo" width="600">
 </p>
 
 
@@ -181,7 +181,7 @@ wlk --backend voxtral-mlx
 ```
 
 
-**Python API Integration**: Check [basic_server](https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/whisperlivekit/basic_server.py) for a more complete example of how to use the functions and classes.
+**Python API Integration**: Check [basic_server](https://github.com/aohana182/Whisper-Local-Tool/blob/main/whisperlivekit/basic_server.py) for a more complete example of how to use the functions and classes.
 
 ```python
 import asyncio
@@ -221,7 +221,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await audio_processor.process_audio(message)        
 ```
 
-**Frontend Implementation**: The package includes an HTML/JavaScript implementation [here](https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/whisperlivekit/web/live_transcription.html). You can also import it using `from whisperlivekit import get_inline_ui_html` & `page = get_inline_ui_html()`
+**Frontend Implementation**: The package includes an HTML/JavaScript implementation [here](https://github.com/aohana182/Whisper-Local-Tool/blob/main/whisperlivekit/web/live_transcription.html). You can also import it using `from whisperlivekit import get_inline_ui_html` & `page = get_inline_ui_html()`
 
 
 ## Parameters & Configuration
@@ -229,8 +229,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--model` | Whisper model size. List and recommandations [here](https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/docs/default_and_custom_models.md) | `small` |
-| `--model-path` | Local .pt file/directory **or** Hugging Face repo ID containing the Whisper model. Overrides `--model`. Recommandations [here](https://github.com/QuentinFuxa/WhisperLiveKit/blob/main/docs/default_and_custom_models.md) | `None` |
+| `--model` | Whisper model size. List and recommandations [here](https://github.com/aohana182/Whisper-Local-Tool/blob/main/docs/default_and_custom_models.md) | `small` |
+| `--model-path` | Local .pt file/directory **or** Hugging Face repo ID containing the Whisper model. Overrides `--model`. Recommandations [here](https://github.com/aohana182/Whisper-Local-Tool/blob/main/docs/default_and_custom_models.md) | `None` |
 | `--language` | List [here](docs/supported_languages.md). If you use `auto`, the model attempts to detect the language automatically, but it tends to bias towards English. | `auto` |
 | `--target-language` | If sets, translates using [NLLW](https://github.com/QuentinFuxa/NoLanguageLeftWaiting). [200 languages available](docs/supported_languages.md). If you want to translate to english, you can also use `--direct-english-translation`. The STT model will try to directly output the translation. | `None` |
 | `--diarization` | Enable speaker identification | `False` |

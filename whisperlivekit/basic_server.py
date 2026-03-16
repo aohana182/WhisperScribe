@@ -1,11 +1,16 @@
 import asyncio
 import logging
+import re
+import sys
 from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from pydantic import BaseModel
 
 from whisperlivekit import AudioProcessor, TranscriptionEngine, get_inline_ui_html, parse_args
 
@@ -32,6 +37,53 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SAVE_DIR = Path(r"C:\MeetingTranscripts")
+
+
+def _sanitize_title(title: str) -> str:
+    """Strip Windows-forbidden filename chars, collapse whitespace, truncate to 80 chars."""
+    sanitized = re.sub(r'[\\/:*?"<>|]', "", title).strip()[:80]
+    return sanitized if sanitized else "untitled"
+
+
+def _make_filename(sanitized: str, started_dt: datetime) -> str:
+    return started_dt.strftime("%Y-%m-%d_%H-%M") + f"_{sanitized}.txt"
+
+
+class SaveRequest(BaseModel):
+    title: str
+    started_at: str
+    ended_at: str
+    text: str
+
+
+@app.post("/save")
+async def save_transcript(req: SaveRequest):
+    try:
+        sanitized = _sanitize_title(req.title)
+        started_dt = datetime.fromisoformat(req.started_at)
+        ended_dt = datetime.fromisoformat(req.ended_at)
+        filename = _make_filename(sanitized, started_dt)
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        final_path = SAVE_DIR / filename
+        tmp_path = SAVE_DIR / (filename + ".tmp")
+        content = (
+            f"Meeting: {req.title}\n"
+            f"Started: {started_dt.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Ended:   {ended_dt.strftime('%Y-%m-%d %H:%M')}\n"
+            f"\n"
+            f"[Transcript]\n"
+            f"\n"
+            f"{req.text}"
+        )
+        tmp_path.write_text(content, encoding="utf-8")
+        tmp_path.rename(final_path)
+        return {"ok": True, "path": str(final_path)}
+    except Exception as e:
+        print(f"[save_transcript] error: {e}", file=sys.stderr)
+        return {"ok": False, "error": str(e)}
+
 
 @app.get("/")
 async def get():
