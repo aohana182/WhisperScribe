@@ -86,7 +86,9 @@ async function startCapture(streamId) {
 
   mergeContext = new AudioContext();
   var dest = mergeContext.createMediaStreamDestination();
-  mergeContext.createMediaStreamSource(tabStream).connect(dest);
+  var tabSource = mergeContext.createMediaStreamSource(tabStream);
+  tabSource.connect(dest);
+  tabSource.connect(mergeContext.destination); // play tab audio back to speakers
   mergeContext.createMediaStreamSource(micStream).connect(dest);
   return dest.stream;
 }
