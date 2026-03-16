@@ -1,20 +1,25 @@
 // recorder.js — owns the full capture session lifecycle
-// States: starting → ready → recording → saving → saved / error
+// States: starting → ready → recording → stopping → saving → saved / error
 
 const WS_URL     = 'ws://localhost:8000/asr';
 const HEALTH_URL = 'http://localhost:8000/health';
 const SAVE_URL   = 'http://localhost:8000/save';
 
-let nmPort         = null;
-let ws             = null;
-let mediaRecorder  = null;
-let mergeContext   = null;
-let finalLines   = [];
-let shownStarts  = new Set(); // dedup by start timestamp string
+let nmPort           = null;
+let ws               = null;
+let mediaRecorder    = null;
+let mergeContext     = null;
+let captureTabSource = null;
+let captureMicSource = null;
+let workletNode      = null;
+let recorderWorker   = null;
+let finalLines       = [];
 let sessionStartedAt = null;
-let meetingTitle   = '';
-let backupInterval = null;
+let meetingTitle     = '';
+let backupInterval   = null;
 let healthPollInterval = null;
+let isRecording      = false;
+let waitingForStop   = false;
 
 // --- UI helpers ---
 function setStatus(state, text) {
@@ -28,12 +33,13 @@ function setMessage(text, type) {
   el.textContent = text;
   el.className = type;
 }
-function appendFinal(lines) {
+function renderLines(lines) {
   const el = document.getElementById('final-text');
-  for (const line of lines) {
-    const text = typeof line === 'string' ? line : (line.text || '');
-    if (text.trim()) el.textContent += text + '\n';
-  }
+  el.textContent = (lines || [])
+    .filter(function(l) { return l.speaker !== -2; })
+    .map(function(l) { return typeof l === 'string' ? l : (l.text || ''); })
+    .filter(function(t) { return t.trim(); })
+    .join('\n');
   document.getElementById('transcript-area').scrollTop = 99999;
 }
 function setInterim(text) {
@@ -85,64 +91,115 @@ async function startCapture(streamId) {
   var micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
 
   mergeContext = new AudioContext();
-  var dest = mergeContext.createMediaStreamDestination();
-  var tabSource = mergeContext.createMediaStreamSource(tabStream);
-  tabSource.connect(dest);
-  tabSource.connect(mergeContext.destination); // play tab audio back to speakers
-  mergeContext.createMediaStreamSource(micStream).connect(dest);
-  return dest.stream;
+  captureTabSource = mergeContext.createMediaStreamSource(tabStream);
+  captureMicSource = mergeContext.createMediaStreamSource(micStream);
+  // Play tab audio through speakers
+  captureTabSource.connect(mergeContext.destination);
 }
 
-// --- WebSocket + MediaRecorder ---
-function startStreaming(mergedStream) {
+// --- PCM path (AudioWorklet + Worker) ---
+async function startPCMCapture() {
+  await mergeContext.audioWorklet.addModule(chrome.runtime.getURL('web/pcm_worklet.js'));
+  workletNode = new AudioWorkletNode(mergeContext, 'pcm-forwarder', {
+    numberOfInputs: 1,
+    numberOfOutputs: 0,
+    channelCount: 1
+  });
+  captureTabSource.connect(workletNode);
+  captureMicSource.connect(workletNode);
+
+  recorderWorker = new Worker(chrome.runtime.getURL('web/recorder_worker.js'));
+  recorderWorker.postMessage({ command: 'init', config: { sampleRate: mergeContext.sampleRate } });
+  recorderWorker.onmessage = function(e) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(e.data.buffer);
+  };
+  workletNode.port.onmessage = function(e) {
+    var ab = e.data instanceof ArrayBuffer ? e.data : e.data.buffer;
+    recorderWorker.postMessage({ command: 'record', buffer: ab }, [ab]);
+  };
+}
+
+// --- WebM path (MediaRecorder fallback) ---
+function startWebMCapture() {
+  var dest = mergeContext.createMediaStreamDestination();
+  captureTabSource.connect(dest);
+  captureMicSource.connect(dest);
+
+  var recOpts = {};
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+    recOpts = { mimeType: 'audio/webm;codecs=opus' };
+  }
+  mediaRecorder = new MediaRecorder(dest.stream, recOpts);
+  mediaRecorder.ondataavailable = function(e) {
+    if (e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+  };
+  mediaRecorder.start(1000);
+}
+
+// --- WebSocket ---
+function openWebSocket() {
   ws = new WebSocket(WS_URL);
 
   ws.onopen = function() {
-    setStatus('recording', 'Recording');
-    setMessage('');
-    sessionStartedAt = new Date().toISOString();
-    finalLines = [];
-    shownStarts = new Set();
-
-    var recOpts = {};
-    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-      recOpts = { mimeType: 'audio/webm;codecs=opus' };
-    }
-    mediaRecorder = new MediaRecorder(mergedStream, recOpts);
-    mediaRecorder.ondataavailable = function(e) {
-      if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
-    };
-    mediaRecorder.start(1000);
-
-    var btn = document.getElementById('btn-record');
-    btn.textContent = 'Stop Recording';
-    btn.classList.add('recording');
-    btn.disabled = false;
-
-    backupInterval = setInterval(saveBackup, 5000);
+    console.log('[WS] open, waiting for config');
   };
 
-  ws.onmessage = function(event) {
-    try {
-      var data = JSON.parse(event.data);
-      if (data.type) return; // skip config / ready_to_stop messages
-      if (data.lines && data.lines.length > 0) {
-        var newLines = data.lines.filter(function(l) {
-          return l.start && !shownStarts.has(l.start);
-        });
-        if (newLines.length > 0) {
-          appendFinal(newLines);
-          finalLines = finalLines.concat(newLines);
-          newLines.forEach(function(l) { if (l.start) shownStarts.add(l.start); });
+  ws.onmessage = async function(event) {
+    var data;
+    try { data = JSON.parse(event.data); } catch(e) { return; }
+
+    if (data.type === 'config') {
+      sessionStartedAt = new Date().toISOString();
+      finalLines = [];
+
+      try {
+        if (data.useAudioWorklet) {
+          await startPCMCapture();
+        } else {
+          startWebMCapture();
         }
+      } catch(e) {
+        setStatus('error', 'Capture failed');
+        setMessage('Audio capture failed: ' + e.message, 'error');
+        ws.close();
+        return;
       }
-      setInterim(data.buffer_transcription || data.buffer_diarization || '');
-    } catch(e) {}
+
+      isRecording = true;
+      setStatus('recording', 'Recording');
+      setMessage('');
+      var btn = document.getElementById('btn-record');
+      btn.textContent = 'Stop Recording';
+      btn.classList.add('recording');
+      btn.disabled = false;
+      backupInterval = setInterval(saveBackup, 5000);
+      return;
+    }
+
+    if (data.type === 'ready_to_stop') {
+      await finalizeSave();
+      return;
+    }
+
+    if (data.type) return; // ignore diff, snapshot, etc.
+
+    // Regular transcription update — server sends full lines array every message
+    if (data.lines) {
+      finalLines = data.lines;
+      renderLines(data.lines);
+    }
+    setInterim(data.buffer_transcription || data.buffer_diarization || '');
   };
 
   ws.onerror = function() { setMessage('WebSocket error - check server', 'error'); };
-  ws.onclose = function() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+
+  ws.onclose = async function() {
+    if (waitingForStop) {
+      // Server closed before ready_to_stop — save what we have
+      await finalizeSave();
+    } else if (isRecording) {
+      isRecording = false;
+      setStatus('error', 'Error');
       setMessage('Connection dropped', 'error');
     }
   };
@@ -166,15 +223,44 @@ async function stopRecording() {
   btn.disabled = true;
   btn.textContent = 'Stopping...';
   clearInterval(backupInterval);
+  isRecording = false;
 
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  await new Promise(function(r) { setTimeout(r, 300); });
+  // Stop audio producers
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder = null;
+  }
+  if (workletNode) {
+    workletNode.port.onmessage = null;
+    workletNode.disconnect();
+    workletNode = null;
+  }
+  if (recorderWorker) {
+    recorderWorker.terminate();
+    recorderWorker = null;
+  }
+
+  // Signal end-of-stream; keep WS open until server sends ready_to_stop
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(new Blob([], { type: 'audio/webm' }));
+  }
+
+  waitingForStop = true;
+  setStatus('saving', 'Processing...');
+  setMessage('Waiting for server to finish...');
+  setInterim('');
+}
+
+// --- Finalize (called after ready_to_stop or on unexpected WS close while stopping) ---
+async function finalizeSave() {
+  if (!waitingForStop) return; // guard against double-call
+  waitingForStop = false;
+
+  // Do not close mergeContext — keeps tab audio playing through speakers
   if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-  // Do not close mergeContext — it keeps tab audio playing through speakers.
-  // It will be garbage collected when the recorder window closes.
 
   setStatus('saving', 'Saving...');
-  setInterim('');
+  setMessage('');
 
   var endedAt = new Date().toISOString();
   var text = finalLines
@@ -206,6 +292,7 @@ async function stopRecording() {
     setMessage('Error: ' + e.message + ' - transcript above is intact', 'error');
   }
 
+  var btn = document.getElementById('btn-record');
   btn.textContent = 'Start Recording';
   btn.classList.remove('recording');
   btn.disabled = false;
@@ -234,14 +321,15 @@ async function init() {
     var btn = document.getElementById('btn-record');
     btn.disabled = false;
     btn.onclick = async function() {
+      if (waitingForStop) return;
       if (btn.classList.contains('recording')) {
         await stopRecording();
       } else {
         btn.disabled = true;
         btn.textContent = 'Capturing...';
         try {
-          var stream = await startCapture(streamId);
-          startStreaming(stream);
+          await startCapture(streamId);
+          openWebSocket();
         } catch(e) {
           setStatus('error', 'Capture failed');
           setMessage('Audio capture failed: ' + e.message, 'error');
