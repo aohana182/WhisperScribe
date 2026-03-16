@@ -117,6 +117,48 @@ Models download automatically on first use and are cached locally.
 
 ---
 
+## Known limitations (CPU-only machines)
+
+**Short version:** this tool works well on machines with an NVIDIA GPU. On CPU-only hardware the transcription quality degrades significantly for non-English languages.
+
+### The core problem
+
+WhisperLiveKit uses two mechanisms to decide when to commit a transcribed token to the final transcript:
+
+1. **LocalAgreement** (default): commits a token only when two consecutive model inferences agree on it. Requires consistent model output.
+2. **`--confidence-validation`**: commits tokens with probability > 0.95 without waiting for agreement.
+
+Neither works well for Russian on the `base` model on CPU:
+- `base` + LocalAgreement: model outputs are too inconsistent across inferences → almost nothing commits
+- `base` + `--confidence-validation`: Russian token confidence on `base` rarely exceeds 0.95 → almost nothing commits
+
+### What was tested (on Lenovo T14s 2023, CPU-only)
+
+| Config | Outcome |
+|--------|---------|
+| `base` + default (LocalAgreement) | English ok. Russian: ~6% of audio committed. |
+| `base` + `--confidence-validation` | No improvement. Russian tokens still below 0.95 confidence threshold on base model. |
+| `small` + `--confidence-validation` | Russian quality much better (~99% of audio committed). But lag grows ~0.5s per second of speech — for a 30-min meeting lag reaches 15 minutes. Text appears in the UI with 10–13s delay, unprocessed audio is dropped when recording stops. |
+| `medium` | Lag immediately unacceptable (31s+ within first minute). |
+
+The lag is a hardware ceiling: `small` model processes audio at ~0.5x real-time on this CPU. There is no software fix for this.
+
+### Path forward
+
+The tool works as designed. The bottleneck is GPU acceleration:
+
+- **NVIDIA GPU (CUDA):** `small` runs comfortably in real-time. `medium` is viable. This is the intended hardware target.
+- **Intel 12th/13th gen (Iris Xe):** OpenVINO backend for CTranslate2 could bring `small` to real-time. Untested.
+- **CPU-only:** `base` model, English only. Russian transcription is not reliable.
+
+To try OpenVINO acceleration (Intel GPU):
+```powershell
+pip install ctranslate2[openvino]
+```
+Then change `--backend faster-whisper` to `--backend faster-whisper` with `--device auto` — or test directly via `faster-whisper` API. This is untested on this hardware.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
