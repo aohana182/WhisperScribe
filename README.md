@@ -93,7 +93,7 @@ This script:
 
 ## Model sizes and language support
 
-Default is `medium` — good balance of accuracy and speed for multilingual use. To change it, open `native_host/host.py` and replace `--model medium` with your preferred size.
+Default is `base` with `--min-chunk-size 3` — the only model that runs in real-time on a CPU-only machine. On machines with a GPU, switch to `small` or `medium` for better accuracy. To change it, open `native_host/host.py`.
 
 | Model | Size | Load time | Quality | Languages |
 |-------|------|-----------|---------|-----------|
