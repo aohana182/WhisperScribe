@@ -29,7 +29,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
-      title: 'WhisperLiveKit Recorder',
+      title: 'Whisper Scribe',
       message: 'Could not capture tab audio: ' + err.message
     });
   }
