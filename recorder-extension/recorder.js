@@ -9,8 +9,8 @@ let nmPort         = null;
 let ws             = null;
 let mediaRecorder  = null;
 let mergeContext   = null;
-let finalLines     = [];
-let lastLineCount  = 0;
+let finalLines       = [];
+let lastShownEnd     = -1; // timestamp of last line end we displayed
 let sessionStartedAt = null;
 let meetingTitle   = '';
 let backupInterval = null;
@@ -101,6 +101,8 @@ function startStreaming(mergedStream) {
     setStatus('recording', 'Recording');
     setMessage('');
     sessionStartedAt = new Date().toISOString();
+    finalLines = [];
+    lastShownEnd = -1;
 
     var recOpts = {};
     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -123,11 +125,19 @@ function startStreaming(mergedStream) {
   ws.onmessage = function(event) {
     try {
       var data = JSON.parse(event.data);
-      if (data.lines && data.lines.length > lastLineCount) {
-        var newLines = data.lines.slice(lastLineCount);
-        appendFinal(newLines);
-        finalLines = data.lines;
-        lastLineCount = data.lines.length;
+      if (data.type) return; // skip config / ready_to_stop messages
+      if (data.lines && data.lines.length > 0) {
+        // Filter to lines we haven't shown yet, identified by start timestamp
+        var newLines = data.lines.filter(function(l) {
+          var start = (l && typeof l.start === 'number') ? l.start : 0;
+          return start > lastShownEnd;
+        });
+        if (newLines.length > 0) {
+          appendFinal(newLines);
+          finalLines = finalLines.concat(newLines);
+          var last = newLines[newLines.length - 1];
+          if (last && typeof last.end === 'number') lastShownEnd = last.end;
+        }
       }
       setInterim(data.buffer_transcription || data.buffer_diarization || '');
     } catch(e) {}
