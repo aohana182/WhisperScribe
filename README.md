@@ -43,29 +43,37 @@ Or install everything at once:
 pip install -r requirements.txt
 ```
 
-### Step 2 — Load the extension in Chrome
+### Step 2 — Load the extensions in Chrome
+
+There are two extensions — load one or both depending on which languages you need:
+
+| Folder | Extension name | Language |
+|--------|---------------|----------|
+| `recorder-extension-en/` | Whisper Scribe EN | English |
+| `recorder-extension-ru/` | Whisper Scribe RU | Russian |
+
+For each extension you want to use:
 
 1. Open Chrome → go to `chrome://extensions`
 2. Toggle **Developer mode** on (top-right corner)
 3. Click **Load unpacked**
-4. Select the `recorder-extension/` folder from this repo
-5. The extension appears as **"Whisper Scribe"**
-6. **Copy the extension ID** — the 32-character string shown under the name
+4. Select the extension folder
+5. **Copy the extension ID** — the 32-character string shown under the name
 
-### Step 3 — Register the native host (one-time)
+### Step 3 — Register the native host (once per extension)
+
+Run `setup.ps1` once for each extension you loaded, pasting its ID when prompted:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File native_host\setup.ps1
 ```
-
-When prompted, paste the extension ID from Step 2.
 
 This script:
 - Finds your Python automatically
 - Registers the native host with Chrome (writes one Windows registry key)
 - Creates `C:\MeetingTranscripts\` if it doesn't exist
 
-**Re-run this script if you ever reinstall the extension** (Chrome gives it a new ID).
+**Re-run this script if you ever reinstall an extension** (Chrome gives it a new ID).
 
 ---
 
@@ -179,7 +187,8 @@ Log evidence: `internal_buffer` always 0 (buffer not the issue). Lag jumps 6–8
 ## Project structure
 
 ```
-recorder-extension/     The Chrome extension — load this in Chrome
+recorder-extension-en/  Chrome extension — English (language=en)
+recorder-extension-ru/  Chrome extension — Russian (language=ru)
 native_host/            Small Python script that manages the Whisper server process
 server.py               FastAPI server wrapping QuentinFuxa's WhisperLiveKit backend
 tests/                  Automated tests
@@ -194,7 +203,7 @@ tests/                  Automated tests
 python -m pytest tests/ -v
 
 # JS unit tests
-cd recorder-extension && npm test
+cd recorder-extension-en && npm test
 ```
 
 ---
@@ -202,4 +211,4 @@ cd recorder-extension && npm test
 ## Credits
 
 Backend engine: [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa.
-Everything in `recorder-extension/`, `native_host/`, and `server.py` is mine.
+Everything in `recorder-extension-en/`, `recorder-extension-ru/`, `native_host/`, and `server.py` is mine.
