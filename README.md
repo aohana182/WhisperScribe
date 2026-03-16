@@ -91,6 +91,28 @@ This script:
 
 ---
 
+## Model sizes and language support
+
+The model is set in `native_host/host.py`. Change `--model small` to whichever fits your machine.
+
+| Model | Size | Load time | Quality | Languages |
+|-------|------|-----------|---------|-----------|
+| `tiny` | 75 MB | ~2s | Poor | English only reliable |
+| `base` | 145 MB | ~4s | Basic | English ok, others weak |
+| `small` | 465 MB | ~10s | Good | Most languages including Russian |
+| `medium` | 1.5 GB | ~20s | Very good | All languages well |
+| `large-v3` | 3 GB | ~40s | Best | All languages, best for code-switching |
+
+**For Russian / mixed Russian+English:** use `small` at minimum, `medium` recommended.
+
+**For English-only:** `base` is fine and loads faster.
+
+**For code-switching** (switching between languages mid-sentence): `medium` or `large-v3` — smaller models tend to lock onto the first detected language.
+
+Models download automatically on first use and are cached locally.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
