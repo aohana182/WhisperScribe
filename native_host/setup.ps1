@@ -12,7 +12,8 @@ Write-Host "=== Whisper Local Tool Setup ===" -ForegroundColor Cyan
 # ---------------------------------------------------------------------------
 # 1. Find Python
 # ---------------------------------------------------------------------------
-$pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+$pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+$pythonExe = if ($pythonCmd) { $pythonCmd.Source } else { $null }
 if (-not $pythonExe) {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     $venvPython = Join-Path $repoRoot ".venv\Scripts\python.exe"
