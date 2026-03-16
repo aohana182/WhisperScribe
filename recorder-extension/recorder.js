@@ -163,7 +163,8 @@ async function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   await new Promise(function(r) { setTimeout(r, 300); });
   if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-  if (mergeContext) { mergeContext.close(); mergeContext = null; }
+  // Do not close mergeContext — it keeps tab audio playing through speakers.
+  // It will be garbage collected when the recorder window closes.
 
   setStatus('saving', 'Saving...');
   setInterim('');
