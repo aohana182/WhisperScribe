@@ -109,7 +109,6 @@ To change the model, language, or any other server flag, edit **`native_host/hos
 
 **For Russian / mixed Russian+English:** use `small` at minimum, `medium` recommended.
 
-**For English-only:** `base` is fine and loads faster.
 
 **For code-switching** (switching between languages mid-sentence): `medium` or `large-v3` — smaller models tend to lock onto the first detected language.
 
@@ -135,15 +134,13 @@ WhisperLiveKit uses two mechanisms to decide when to commit a transcribed token 
 | `small` + `--confidence-validation` | ~99% of audio committed but lag grows ~0.5s per second of speech. For a 30-min meeting lag reaches ~15 min. Text appears 10–13s late in the UI; unprocessed audio is dropped when recording stops. |
 | `medium` | Lag immediately unacceptable (31s+ within first minute). |
 
-The lag is a hardware ceiling: `small` processes audio at ~0.5x real-time on this CPU. There is no software fix for this.
+None of the models produce acceptable results on CPU-only hardware for either English or Russian. The tested results above reflect the state before transport-layer fixes (PCM path, correct stop handling) — re-evaluation is pending after those fixes land.
 
 ### Path forward
 
-The bottleneck is inference speed. Options under investigation:
-
-- **CTranslate2 thread tuning:** i7-1355U has 10 cores; default thread count may be under-utilizing them. Increasing `--cpu_threads` could bring `small` closer to real-time. Untested.
-- **NVIDIA GPU (CUDA):** would make `small` real-time. Not available on this hardware.
-- **Intel Iris Xe (OpenVINO):** may accelerate inference on this specific CPU. Under investigation.
+1. Fix the three extension bugs (wrong transport, broken stop, lossy dedup) — in progress.
+2. Re-test all model/config combinations on the clean transport path.
+3. If hardware is the ceiling after software fixes: investigate OpenVINO backend for Intel Iris Xe.
 
 ---
 
