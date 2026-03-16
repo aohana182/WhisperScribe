@@ -138,7 +138,7 @@ None of the models produce acceptable results on CPU-only hardware for either En
 
 ### Path forward
 
-1. Fix the three extension bugs (wrong transport, broken stop, lossy dedup) — in progress.
+1. ~~Fix the three extension bugs (wrong transport, broken stop, lossy dedup)~~ — code complete (commit e7e1863), **live review outstanding**.
 2. Re-test all model/config combinations on the clean transport path.
 3. If hardware is the ceiling after software fixes: investigate OpenVINO backend for Intel Iris Xe.
 
