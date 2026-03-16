@@ -110,7 +110,7 @@ function startStreaming(mergedStream) {
     mediaRecorder.ondataavailable = function(e) {
       if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
     };
-    mediaRecorder.start(250);
+    mediaRecorder.start(1000);
 
     var btn = document.getElementById('btn-record');
     btn.textContent = 'Stop Recording';
