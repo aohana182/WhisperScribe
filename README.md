@@ -136,11 +136,18 @@ WhisperLiveKit uses two mechanisms to decide when to commit a transcribed token 
 
 None of the models produce acceptable results on CPU-only hardware for either English or Russian. The tested results above reflect the state before transport-layer fixes (PCM path, correct stop handling) — re-evaluation is pending after those fixes land.
 
+### Root cause of growing lag (identified 2026-03-16)
+
+`get_all_from_queue` concatenates all backlogged PCM chunks into one array before inference. WLK's `audio_buffer` accumulates audio until `buffer_trimming_sec` is reached. Inference time grows proportionally to buffer size. With `buffer_trimming_sec=30`, the buffer grows to 30s — at 2x realtime (`small` model) that is 15s per inference pass, during which 15s more audio queues up. This compounds into unbounded lag growth.
+
+**Fix applied (commit ac1fc3a):** `--min-chunk-size 1` (was 3), `--buffer_trimming_sec 8` (was 30). Caps inference per pass to 2s (`base`) or 4s (`small`), eliminating the compounding growth. Expected outcome: lag stabilizes instead of growing.
+
 ### Path forward
 
 1. ~~Fix the three extension bugs (wrong transport, broken stop, lossy dedup)~~ — code complete (commit e7e1863), **live review outstanding**.
-2. Re-test all model/config combinations on the clean transport path.
-3. If hardware is the ceiling after software fixes: investigate OpenVINO backend for Intel Iris Xe.
+2. ~~Identify root cause of growing lag~~ — done (buffer_trimming_sec=30 caused compounding, commit ac1fc3a).
+3. Re-test all model/config combinations with new buffer params on the clean transport path.
+4. If hardware is the ceiling after software fixes: investigate OpenVINO backend for Intel Iris Xe.
 
 ---
 
