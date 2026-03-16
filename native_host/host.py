@@ -37,7 +37,7 @@ def main():
             if _server_proc is None or _server_proc.poll() is not None:
                 try:
                     _server_proc = subprocess.Popen(
-                        [sys.executable, _SERVER_PY, '--model', 'base', '--language', 'auto'],
+                        [sys.executable, _SERVER_PY, '--model', 'small', '--language', 'auto'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL
                     )
