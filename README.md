@@ -140,14 +140,28 @@ None of the models produce acceptable results on CPU-only hardware for either En
 
 `get_all_from_queue` concatenates all backlogged PCM chunks into one array before inference. WLK's `audio_buffer` accumulates audio until `buffer_trimming_sec` is reached. Inference time grows proportionally to buffer size. With `buffer_trimming_sec=30`, the buffer grows to 30s — at 2x realtime (`small` model) that is 15s per inference pass, during which 15s more audio queues up. This compounds into unbounded lag growth.
 
-**Fix applied (commit ac1fc3a):** `--min-chunk-size 1` (was 3), `--buffer_trimming_sec 8` (was 30). Caps inference per pass to 2s (`base`) or 4s (`small`), eliminating the compounding growth. Expected outcome: lag stabilizes instead of growing.
+**Fix applied (commit ac1fc3a):** `--min-chunk-size 1` (was 3), `--buffer_trimming_sec 8` (was 30). Caps inference per pass to 2s (`base`) or 4s (`small`), eliminating the compounding growth.
+
+**Result (tested 2026-03-16):** Lag no longer grows unboundedly. Improvement confirmed. However, lag still reaches 10–25s during speech and does not stay near zero. `internal_buffer=0.00s` on every log line — buffer trimming is working. Lag is coming from elsewhere.
+
+### Remaining lag — open hypotheses (as of 2026-03-16)
+
+Log evidence: `internal_buffer` always 0 (buffer not the issue). Lag jumps 6–8s on individual 1s audio chunks, implying inference on the `base` model is taking 6–8s per 1s of audio at times — far slower than the 4x realtime benchmark. Silero VAD frequently classifies speech as silence (e.g., `Silence of = 16.93s`), which suppresses transcription for long stretches.
+
+| Hypothesis | How to test |
+|---|---|
+| **Silero VAD is misclassifying speech as silence** — the longest periods of "lag reset" are actually dropped audio, not real silence | Disable VAD (`--no-vad` if supported, or monkey-patch) and compare lag |
+| **Silero VAD itself is slow on CPU** — ONNX model running on every 1s chunk adds 3–6s overhead | Time `vac.__call__` separately; check if VAD runs on CPU or uses ONNX accelerator |
+| **Inference on `base` is slower than benchmark** — benchmark used pre-loaded file; production has Python overhead, init_prompt construction, tokenizer calls each pass | Add per-inference timing to server log; compare against standalone benchmark |
+| **`--confidence-validation` causes too many near-commits** — `base` model confidence never reaches 0.95, so every pass is a full re-scan with no trim progress | Remove `--confidence-validation` and use LocalAgreement; see if commit rate improves |
+| **`min_chunk_size=1` causes too much inference overhead** — 1 call/second, each paying fixed Python/tokenizer overhead | Try `--min-chunk-size 2` or `3` to reduce call frequency while keeping buffer small |
 
 ### Path forward
 
-1. ~~Fix the three extension bugs (wrong transport, broken stop, lossy dedup)~~ — code complete (commit e7e1863), **live review outstanding**.
-2. ~~Identify root cause of growing lag~~ — done (buffer_trimming_sec=30 caused compounding, commit ac1fc3a).
-3. Re-test all model/config combinations with new buffer params on the clean transport path.
-4. If hardware is the ceiling after software fixes: investigate OpenVINO backend for Intel Iris Xe.
+1. ~~Fix the three extension bugs (wrong transport, broken stop, lossy dedup)~~ — code complete (commit e7e1863), live tested.
+2. ~~Identify and fix compounding lag (buffer_trimming_sec=30)~~ — done, commit ac1fc3a.
+3. Investigate remaining lag: test hypotheses above, starting with VAD behaviour.
+4. If hardware is the ceiling: investigate OpenVINO backend (Intel Iris Xe) or ROCm (AMD Ryzen).
 
 ---
 
