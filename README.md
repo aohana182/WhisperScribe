@@ -1,18 +1,8 @@
 # Whisper Scribe
 
-> I took [QuentinFuxa's WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) and vibe coded a Chrome extension on top of it. I don't fully understand the internals. If something breaks in the backend, go read his repo — that's the actual engine. What I built is the recorder extension that sits on top of it.
+Chrome extension for streaming transcription of browser meetings — locally, on your machine. Captures tab audio and microphone simultaneously, streams audio to a local Whisper server, and saves a timestamped `.txt` file when you stop.
 
----
-
-## What it does
-
-One-click Chrome extension for recording browser meetings locally.
-
-- Click the extension icon on any meeting tab
-- It captures **tab audio + your mic** simultaneously
-- Transcribes in real time using Whisper running on your machine
-- When you stop, saves a `.txt` file to `C:\MeetingTranscripts\YYYY-MM-DD_HH-mm_<title>.txt`
-- Nothing leaves your machine. No cloud. No subscriptions.
+Nothing leaves your machine. No cloud. No subscription.
 
 Tested on: Google Meet, Zoom Web, Yandex Telemost.
 
@@ -23,153 +13,102 @@ Tested on: Google Meet, Zoom Web, Yandex Telemost.
 - Windows 10/11
 - Python 3.11–3.13
 - Chrome (or any Chromium browser)
-- ~1GB disk space for the Whisper `base` model (auto-downloaded on first run)
+- ~1 GB disk for the Whisper `base` model (downloaded automatically on first run)
+- GPU strongly recommended for usable latency — see [Model guide](#model-guide)
 
 ---
 
-## Installation (one-time setup)
+## Installation
 
-### Step 1 — Install the Python backend
-
-This project depends on [QuentinFuxa's WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) as its transcription engine. Install it first:
-
-```powershell
-pip install whisperlivekit
-```
-
-Or install everything at once:
+### 1 — Install the Python backend
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-### Step 2 — Load the extensions in Chrome
+### 2 — Load the extension in Chrome
 
-There are two extensions — load one or both depending on which languages you need:
+Two extensions are provided — load one or both:
 
-| Folder | Extension name | Language |
-|--------|---------------|----------|
+| Folder | Extension | Language |
+|--------|-----------|----------|
 | `recorder-extension-en/` | Whisper Scribe EN | English |
 | `recorder-extension-ru/` | Whisper Scribe RU | Russian |
 
-For each extension you want to use:
+For each extension:
 
-1. Open Chrome → go to `chrome://extensions`
-2. Toggle **Developer mode** on (top-right corner)
-3. Click **Load unpacked**
-4. Select the extension folder
-5. **Copy the extension ID** — the 32-character string shown under the name
+1. Chrome → `chrome://extensions`
+2. Toggle **Developer mode** on (top-right)
+3. Click **Load unpacked** → select the extension folder
+4. Copy the 32-character extension ID shown under the name
 
-### Step 3 — Register the native host (once per extension)
+### 3 — Register the native host
 
-Run `setup.ps1` once for each extension you loaded, pasting its ID when prompted:
+Run once per extension, pasting the ID when prompted:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File native_host\setup.ps1
 ```
 
-This script:
-- Finds your Python automatically
-- Registers the native host with Chrome (writes one Windows registry key)
-- Creates `C:\MeetingTranscripts\` if it doesn't exist
+This script locates your Python, registers the native host with Chrome (one registry key), and creates `C:\MeetingTranscripts\` if it doesn't exist.
 
-**Re-run this script if you ever reinstall an extension** (Chrome gives it a new ID).
+**Re-run if you ever reinstall an extension** — Chrome assigns a new ID each time.
 
 ---
 
-## How to use it
+## Usage
 
-1. Open Chrome, go to your meeting tab (Meet, Zoom, Telemost, etc.)
-2. Click the **Whisper Scribe** icon in the Chrome toolbar
-   - If you don't see it: click the puzzle piece icon → pin it
-3. A recorder window opens. Status shows **"Starting server..."**
-4. Wait ~8 seconds on first run (Whisper loads). After that it's instant.
-5. Status changes to **"Ready"** → click **Start Recording**
-6. Talk. The transcript appears in real time.
-7. Click **Stop Recording** when done
-8. Find your file in `C:\MeetingTranscripts\`
+1. Go to your meeting tab in Chrome
+2. Click the **Whisper Scribe** icon in the toolbar
+   - Don't see it? Click the puzzle piece → pin it
+3. The recorder window opens — wait for **"Ready"** (~8 s on first run while the model loads)
+4. Click **Start Recording**
+5. Talk — transcript streams in with a short delay
+6. Click **Stop Recording** — file saved to `C:\MeetingTranscripts\`
 
 ### Buttons
 
-| Button | What it does |
-|--------|-------------|
-| Start Recording | Begins capturing tab audio + mic and transcribing |
-| Stop Recording | Stops capture, saves transcript to disk |
-| Kill Server | Shuts down the Whisper server (frees memory) |
+| Button | Action |
+|--------|--------|
+| Start Recording | Captures tab audio + mic, begins transcription |
+| Stop Recording | Stops capture, saves transcript |
+| Kill Server | Shuts down the Whisper process (frees memory) |
 
 ---
 
-## Model sizes and language support
+## Model guide
 
-Default is `base` with `--min-chunk-size 3` — the only model that runs in real-time on a CPU-only machine. On machines with a GPU, switch to `small` or `medium` for better accuracy.
+**Backend:** [faster-whisper](https://github.com/guillaumekln/faster-whisper) (ctranslate2), served via [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit). Audio is streamed as raw PCM over WebSocket.
 
-**Language:** auto-detected. Russian and English both work out of the box — no configuration needed. The language flag is intentionally omitted so Whisper picks the language from the audio.
+Default model is `base`. To change it, edit **`native_host/host.py` line 50** — that is the single place where all server launch arguments are set.
 
-To change the model, language, or any other server flag, edit **`native_host/host.py` line 50** — that is the single place where all server launch arguments are hardcoded.
+| Model | Size | CPU load time | Notes |
+|-------|------|---------------|-------|
+| `tiny` | 75 MB | ~2 s | Unreliable for non-English |
+| `base` | 145 MB | ~4 s | Default. English acceptable; Russian/other weak |
+| `small` | 465 MB | ~10 s | Most languages usable; minimum for Russian |
+| `medium` | 1.5 GB | ~20 s | All languages well; recommended for Russian |
+| `large-v3` | 3 GB | ~40 s | Best accuracy; handles code-switching |
 
-| Model | Size | Load time | Quality | Languages |
-|-------|------|-----------|---------|-----------|
-| `tiny` | 75 MB | ~2s | Poor | English only reliable |
-| `base` | 145 MB | ~4s | Basic | English ok, others weak |
-| `small` | 465 MB | ~10s | Good | Most languages including Russian |
-| `medium` | 1.5 GB | ~20s | Very good | All languages well |
-| `large-v3` | 3 GB | ~40s | Best | All languages, best for code-switching |
+Load times above are CPU estimates on a mid-range laptop. GPU load times are 3–5× faster.
 
-**For Russian / mixed Russian+English:** use `small` at minimum, `medium` recommended.
+For Russian or mixed Russian+English: `small` minimum, `medium` recommended.
+For code-switching (mid-sentence language switches): `medium` or `large-v3`.
 
-
-**For code-switching** (switching between languages mid-sentence): `medium` or `large-v3` — smaller models tend to lock onto the first detected language.
-
-Models download automatically on first use and are cached locally.
+Models download automatically on first use from Hugging Face.
 
 ---
 
 ## Known limitations
 
-### Performance on CPU-only hardware (tested: Lenovo T14s 2023, Intel i7-1355U)
+**CPU-only hardware is not viable for real-time use.** Tested on Intel i7-1355U (Lenovo ThinkPad T14s 2023, no GPU):
 
-WhisperLiveKit uses two mechanisms to decide when to commit a transcribed token to the final transcript:
+- `base` model: 10–25 s transcription lag during speech. Root cause: Silero VAD running on CPU per chunk, plus faster-whisper inference slower than advertised benchmarks under streaming conditions.
+- `small` and larger: lag grows continuously and becomes unusable within minutes.
 
-1. **LocalAgreement** (default): commits a token only when two consecutive model inferences agree on it.
-2. **`--confidence-validation`**: commits tokens with probability > 0.95 without waiting for agreement.
+A GPU with CUDA (NVIDIA), ROCm (AMD), or OpenVINO (Intel Arc / Iris Xe) support is required for usable results. The faster-whisper backend will use it automatically if available.
 
-### What was tested
-
-| Config | Outcome |
-|--------|---------|
-| `base` + default (LocalAgreement) | ~6% of audio committed. Both English and Russian affected. |
-| `base` + `--confidence-validation` | No meaningful improvement. Token confidence on `base` rarely exceeds 0.95. |
-| `small` + `--confidence-validation` | ~99% of audio committed but lag grows ~0.5s per second of speech. For a 30-min meeting lag reaches ~15 min. Text appears 10–13s late in the UI; unprocessed audio is dropped when recording stops. |
-| `medium` | Lag immediately unacceptable (31s+ within first minute). |
-
-None of the models produce acceptable results on CPU-only hardware for either English or Russian. The tested results above reflect the state before transport-layer fixes (PCM path, correct stop handling) — re-evaluation is pending after those fixes land.
-
-### Root cause of growing lag (identified 2026-03-16)
-
-`get_all_from_queue` concatenates all backlogged PCM chunks into one array before inference. WLK's `audio_buffer` accumulates audio until `buffer_trimming_sec` is reached. Inference time grows proportionally to buffer size. With `buffer_trimming_sec=30`, the buffer grows to 30s — at 2x realtime (`small` model) that is 15s per inference pass, during which 15s more audio queues up. This compounds into unbounded lag growth.
-
-**Fix applied (commit ac1fc3a):** `--min-chunk-size 1` (was 3), `--buffer_trimming_sec 8` (was 30). Caps inference per pass to 2s (`base`) or 4s (`small`), eliminating the compounding growth.
-
-**Result (tested 2026-03-16):** Lag no longer grows unboundedly. Improvement confirmed. However, lag still reaches 10–25s during speech and does not stay near zero. `internal_buffer=0.00s` on every log line — buffer trimming is working. Lag is coming from elsewhere.
-
-### Remaining lag — open hypotheses (as of 2026-03-16)
-
-Log evidence: `internal_buffer` always 0 (buffer not the issue). Lag jumps 6–8s on individual 1s audio chunks, implying inference on the `base` model is taking 6–8s per 1s of audio at times — far slower than the 4x realtime benchmark. Silero VAD frequently classifies speech as silence (e.g., `Silence of = 16.93s`), which suppresses transcription for long stretches.
-
-| Hypothesis | How to test |
-|---|---|
-| **Silero VAD is misclassifying speech as silence** — the longest periods of "lag reset" are actually dropped audio, not real silence | Disable VAD (`--no-vad` if supported, or monkey-patch) and compare lag |
-| **Silero VAD itself is slow on CPU** — ONNX model running on every 1s chunk adds 3–6s overhead | Time `vac.__call__` separately; check if VAD runs on CPU or uses ONNX accelerator |
-| **Inference on `base` is slower than benchmark** — benchmark used pre-loaded file; production has Python overhead, init_prompt construction, tokenizer calls each pass | Add per-inference timing to server log; compare against standalone benchmark |
-| **`--confidence-validation` causes too many near-commits** — `base` model confidence never reaches 0.95, so every pass is a full re-scan with no trim progress | Remove `--confidence-validation` and use LocalAgreement; see if commit rate improves |
-| **`min_chunk_size=1` causes too much inference overhead** — 1 call/second, each paying fixed Python/tokenizer overhead | Try `--min-chunk-size 2` or `3` to reduce call frequency while keeping buffer small |
-
-### Path forward
-
-1. ~~Fix the three extension bugs (wrong transport, broken stop, lossy dedup)~~ — code complete (commit e7e1863), live tested.
-2. ~~Identify and fix compounding lag (buffer_trimming_sec=30)~~ — done, commit ac1fc3a.
-3. Investigate remaining lag: test hypotheses above, starting with VAD behaviour.
-4. If hardware is the ceiling: investigate OpenVINO backend (Intel Iris Xe) or ROCm (AMD Ryzen).
+Open performance issues are tracked [here](../../issues).
 
 ---
 
@@ -177,21 +116,21 @@ Log evidence: `internal_buffer` always 0 (buffer not the issue). Lag jumps 6–8
 
 | Problem | Fix |
 |---------|-----|
-| Recorder window opens but stays "Starting server..." forever | Open PowerShell, run `python server.py --model base` to see the error |
-| "Native Messaging failed" in the recorder window | Re-run `native_host\setup.ps1` — the extension ID may have changed |
-| No extension icon visible | Click the puzzle piece in Chrome toolbar → pin Whisper Scribe |
-| Tab audio not captured | Chrome requires the tab to be playing audio when you click the icon |
+| Stuck on "Starting server..." | Run `python server.py --model base` in PowerShell to see the error |
+| "Native Messaging failed" | Re-run `native_host\setup.ps1` — extension ID may have changed |
+| No icon visible | Click the puzzle piece in toolbar → pin Whisper Scribe |
+| Tab audio not captured | The tab must be playing audio when you click the icon |
 
 ---
 
 ## Project structure
 
 ```
-recorder-extension-en/  Chrome extension — English (language=en)
-recorder-extension-ru/  Chrome extension — Russian (language=ru)
-native_host/            Small Python script that manages the Whisper server process
-server.py               FastAPI server wrapping QuentinFuxa's WhisperLiveKit backend
-tests/                  Automated tests
+recorder-extension-en/   Chrome extension — English
+recorder-extension-ru/   Chrome extension — Russian
+native_host/             Chrome Native Messaging host — manages the server process
+server.py                FastAPI server wrapping WhisperLiveKit, adds POST /save
+tests/                   Python (pytest) and JS (Vitest) tests
 ```
 
 ---
@@ -199,10 +138,7 @@ tests/                  Automated tests
 ## Running tests
 
 ```powershell
-# Python tests
 python -m pytest tests/ -v
-
-# JS unit tests
 cd recorder-extension-en && npm test
 ```
 
@@ -210,5 +146,5 @@ cd recorder-extension-en && npm test
 
 ## Credits
 
-Backend engine: [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa.
-Everything in `recorder-extension-en/`, `recorder-extension-ru/`, `native_host/`, and `server.py` is mine.
+Transcription engine: [WhisperLiveKit](https://github.com/QuentinFuxa/WhisperLiveKit) by QuentinFuxa, built on [faster-whisper](https://github.com/guillaumekln/faster-whisper) (ctranslate2).
+Everything in `recorder-extension-en/`, `recorder-extension-ru/`, `native_host/`, and `server.py` is original work built on top of it.
